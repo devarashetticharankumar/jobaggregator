@@ -1,13 +1,17 @@
 import axios from 'axios';
 
-const VITE_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/jobs';
-const API_URL = VITE_API_URL.trim().replace(/\/$/, "");
+// Use the provided URL or fallback to localhost
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+// Ensure no trailing slash and append /api/jobs if it's missing (to handle users providing just the base domain)
+const API_BASE = BASE_URL.trim().replace(/\/$/, "");
+const JOBS_ENDPOINT = API_BASE.includes('/api') ? API_BASE : `${API_BASE}/api/jobs`;
 
-console.log('Using API_URL:', API_URL);
+console.log('API Base Configured:', JOBS_ENDPOINT);
 
 export const fetchJobs = async () => {
     try {
-        const response = await axios.get(API_URL);
+        console.log('Fetching jobs from:', JOBS_ENDPOINT);
+        const response = await axios.get(JOBS_ENDPOINT);
         return response.data;
     } catch (error) {
         console.error('Error fetching jobs:', error);
@@ -17,8 +21,9 @@ export const fetchJobs = async () => {
 
 export const triggerManualScrape = async () => {
     try {
-        // Updated to match the backend-folder implementation (POST)
-        const response = await axios.post(`${API_URL}/scrape`, {}, {
+        const scrapeUrl = `${JOBS_ENDPOINT}/scrape`;
+        console.log('Triggering manual scrape at:', scrapeUrl);
+        const response = await axios.post(scrapeUrl, {}, {
             timeout: 900000 // 15 minutes
         });
         return response.data;
