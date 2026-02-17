@@ -35,7 +35,7 @@ const scrapeJobs = async (urls) => {
 
     try {
         for (const url of urls) {
-            fs.appendFileSync(DEBUG_LOG, `\nTargeting URL: ${url}\n`);
+            logger.info(`Targeting URL: ${url}`);
             const page = await browser.newPage();
 
             await page.setCacheEnabled(false);
@@ -53,11 +53,10 @@ const scrapeJobs = async (urls) => {
                 });
 
                 if (isBlocked) {
-                    fs.appendFileSync(DEBUG_LOG, `Cloudflare/Captcha detected for URL: ${url}\n`);
-                    fs.writeFileSync(path.join(__dirname, '../glassdoor_block.html'), await page.content());
+                    logger.warn(`Cloudflare/Captcha detected for URL: ${url}`);
                 }
 
-                fs.appendFileSync(DEBUG_LOG, `Starting Deep Exploration (Show More + Scrolling)...\n`);
+                logger.info(`Starting Deep Exploration (Show More + Scrolling)...`);
 
                 const jobSelectors = [
                     "[data-test='jobListItem']",
@@ -68,36 +67,28 @@ const scrapeJobs = async (urls) => {
 
                 // DEEP EXPLORATION LOOP: Click "Show More" as long as it's there (limit 5 times) and scroll
                 for (let i = 0; i < 6; i++) {
-                    // Try to finding and clicking "Show More"
                     const moreBtn = await page.$('button[class*="JobCard_loadMore"], [data-test="load-more"]');
                     if (moreBtn) {
-                        fs.appendFileSync(DEBUG_LOG, `Clicking 'Show More' (Iteration ${i + 1})...\n`);
+                        logger.info(`Clicking 'Show More' (Iteration ${i + 1})...`);
                         await moreBtn.click().catch(() => { });
                         await new Promise(r => setTimeout(r, 3000));
                     }
 
-                    // Scroll to bottom a bit
                     await page.evaluate(() => window.scrollBy(0, 1500));
                     await new Promise(r => setTimeout(r, 2000));
 
                     const count = (await page.$$(jobSelectors.join(", "))).length;
-                    fs.appendFileSync(DEBUG_LOG, `Progress: ${count} jobs loaded.\n`);
+                    logger.info(`Progress: ${count} jobs loaded.`);
 
-                    if (count > 60) break; // Efficiency cap
+                    if (count > 60) break;
                 }
 
                 let jobItems = await page.$$(jobSelectors.join(", "));
                 const totalFound = jobItems.length;
-                fs.appendFileSync(DEBUG_LOG, `Total cards captured for extraction: ${totalFound}\n`);
-
-                if (totalFound === 0) {
-                    fs.writeFileSync(path.join(__dirname, `../debug_zero_results_${Date.now()}.html`), await page.content());
-                }
+                logger.info(`Total cards captured for extraction: ${totalFound}`);
 
                 const scrapedJobs = [];
                 const seenKeys = new Set();
-
-                // Extract up to 60 jobs per URL now that we click show more
                 const limit = Math.min(totalFound, 60);
 
                 for (let i = 0; i < limit; i++) {
@@ -166,11 +157,10 @@ const scrapeJobs = async (urls) => {
                             }
                         }
                     } catch (cardErr) {
-                        fs.appendFileSync(DEBUG_LOG, `Card ${i} Error: ${cardErr.message}\n`);
+                        logger.error(`Card ${i} Error: ${cardErr.message}`);
                     }
                 }
 
-                allJobs.push(...scrapedJobs);
                 allJobs.push(...scrapedJobs);
                 logger.info(`URL Result: Found ${scrapedJobs.length} potential jobs.`);
 
