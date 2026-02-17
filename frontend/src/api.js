@@ -1,6 +1,9 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/jobs';
+const VITE_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/jobs';
+const API_URL = VITE_API_URL.trim().replace(/\/$/, "");
+
+console.log('Using API_URL:', API_URL);
 
 export const fetchJobs = async () => {
     try {
