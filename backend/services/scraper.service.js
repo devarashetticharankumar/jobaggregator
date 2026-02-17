@@ -10,20 +10,26 @@ puppeteer.use(StealthPlugin());
 const DEBUG_LOG = path.join(__dirname, '../scraper_debug.log');
 
 const scrapeJobs = async (urls) => {
-    // Clear debug log for fresh session
-    fs.writeFileSync(DEBUG_LOG, `--- Scrape Session Started: ${new Date().toISOString()} ---\n`);
+    logger.info(`--- Scrape Session Started: ${new Date().toISOString()} ---`);
 
-    const browser = await puppeteer.launch({
-        headless: true,
-        args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-gpu',
-            '--disable-http-cache',
-            '--window-size=1920,1080'
-        ]
-    });
+    let browser;
+    try {
+        browser = await puppeteer.launch({
+            headless: true,
+            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || null,
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
+                '--disable-http-cache',
+                '--window-size=1920,1080'
+            ]
+        });
+    } catch (launchError) {
+        logger.error(`FAILED TO LAUNCH BROWSER: ${launchError.message}`);
+        throw new Error(`Browser launch failed. This usually means Puppeteer/Chromium dependencies are missing on the server. ${launchError.message}`);
+    }
 
     const allJobs = [];
 
@@ -177,15 +183,21 @@ const scrapeJobs = async (urls) => {
             // Global limit for a single trigger session
             if (allJobs.length >= 100) break;
         }
-    } catch (error) {
-        fs.appendFileSync(DEBUG_LOG, `Global failure: ${error.message}\n`);
-        logger.error(`Scraper process error: ${error.message}`);
     } finally {
-        await browser.close();
-        fs.appendFileSync(DEBUG_LOG, `--- Scrape Session Ended ---\n`);
+        await page.close();
     }
 
-    return allJobs;
+    // Global limit for a single trigger session
+    if (allJobs.length >= 100) break;
+}
+    } catch (error) {
+    logger.error(`Scraper process error: ${error.message}`);
+} finally {
+    if (browser) await browser.close();
+    logger.info(`--- Scrape Session Ended ---`);
+}
+
+return allJobs;
 };
 
 module.exports = { scrapeJobs };
