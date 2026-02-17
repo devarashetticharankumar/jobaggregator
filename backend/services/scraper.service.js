@@ -171,33 +171,26 @@ const scrapeJobs = async (urls) => {
                 }
 
                 allJobs.push(...scrapedJobs);
-                fs.appendFileSync(DEBUG_LOG, `URL Result: Found ${scrapedJobs.length} potential jobs.\n`);
+                allJobs.push(...scrapedJobs);
+                logger.info(`URL Result: Found ${scrapedJobs.length} potential jobs.`);
 
             } catch (err) {
-                fs.appendFileSync(DEBUG_LOG, `URL processing error: ${err.message}\n`);
                 logger.error(`Error scraping ${url}: ${err.message}`);
             } finally {
-                await page.close();
+                if (page) await page.close();
             }
 
             // Global limit for a single trigger session
             if (allJobs.length >= 100) break;
         }
+    } catch (error) {
+        logger.error(`Scraper process error: ${error.message}`);
     } finally {
-        await page.close();
+        if (browser) await browser.close();
+        logger.info(`--- Scrape Session Ended ---`);
     }
 
-    // Global limit for a single trigger session
-    if (allJobs.length >= 100) break;
-}
-    } catch (error) {
-    logger.error(`Scraper process error: ${error.message}`);
-} finally {
-    if (browser) await browser.close();
-    logger.info(`--- Scrape Session Ended ---`);
-}
-
-return allJobs;
+    return allJobs;
 };
 
 module.exports = { scrapeJobs };
